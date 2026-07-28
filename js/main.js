@@ -6,6 +6,7 @@ import { createObstacles } from './obstacles.js';
 import { createCollectibles, LOGOS } from './collectibles.js';
 import { createClock } from './clock.js';
 import { ROWS, TOTAL_ROWS, stageNameAt } from './stages.js';
+import { unlockAudio, playHop, playPickup, playShieldSave, playCollision, playArrival, startMusic, stopMusic } from './audio.js';
 
 const canvas = document.getElementById('game-canvas');
 const { scene, camera, renderer, updateCamera } = createScene(canvas);
@@ -17,11 +18,10 @@ const player = createPlayer(scene);
 const obstacles = createObstacles(scene, ROWS);
 const collectibles = createCollectibles(scene, ROWS);
 const clock = createClock();
-window.__debug = { player };
 
 initInput((dx, dz) => {
   if (gameState !== 'playing') return;
-  player.hop(dx, dz);
+  if (player.hop(dx, dz)) playHop();
 });
 
 // --- HUD: top-right row of logo slots, lit up as each is collected ---
@@ -68,10 +68,12 @@ function showResult({ title, time, logos, score: scoreText }) {
   resultScoreEl.textContent = scoreText;
   screenResultEl.classList.remove('hidden');
   gameState = 'result';
+  stopMusic();
 }
 
 // Resets all round state and starts (or restarts) a fresh commute.
 function startRound() {
+  unlockAudio();
   player.reset();
   collectibles.reset();
   score = 0;
@@ -83,6 +85,7 @@ function startRound() {
   screenHomeEl.classList.add('hidden');
   screenResultEl.classList.add('hidden');
   gameState = 'playing';
+  startMusic();
 }
 
 function goHome() {
@@ -98,6 +101,7 @@ document.getElementById('btn-home').addEventListener('click', goHome);
 // Help overlays on top of the home screen without changing gameState —
 // closing it just returns to the same home screen underneath.
 document.getElementById('btn-help').addEventListener('click', () => {
+  unlockAudio();
   screenHelpEl.classList.remove('hidden');
 });
 document.getElementById('btn-help-close').addEventListener('click', () => {
@@ -128,6 +132,7 @@ function applyPickup(def) {
   score += 50;
   console.log(`${def.label} 로고 획득! (${logoCount}개, 점수 ${score})`);
   setHudCollected(def.key, true);
+  playPickup();
 
   if (def.effect === 'invincible') {
     shieldTimer = def.duration;
@@ -156,9 +161,11 @@ function handleCollision() {
     player.state.barrier = false;
     barrierGraceActive = true;
     console.log('🛡️ Claude 세이프티 배리어 발동! 충돌 무효화');
+    playShieldSave();
     return;
   }
 
+  playCollision();
   showResult({
     title: '출근 실패 😢',
     time: clock.getTimeString(),
@@ -170,6 +177,7 @@ function handleCollision() {
 function handleArrival() {
   const grade = clock.getGrade();
   const finalScore = score + grade.bonus;
+  playArrival(grade.key);
   showResult({
     title: `${grade.emoji} ${grade.label}!`,
     time: clock.getTimeString(),
