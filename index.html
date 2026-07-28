@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>길건너 멀캠</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+  <div id="hud-clock" class="hud-clock"></div>
+  <div id="hud-collectibles" class="hud-collectibles"></div>
+
+  <div id="screen-home" class="screen">
+    <div class="card">
+      <h1>🚦 길건너 멀캠</h1>
+      <p>방향키로 출근길을 건너 회사에 도착하세요!</p>
+      <div class="btn-row">
+        <button id="btn-start" class="btn-primary">출근 시작하기</button>
+        <button id="btn-help" class="btn-secondary">조작법</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="screen-help" class="screen hidden">
+    <div class="card help-card">
+      <h2>📖 조작법</h2>
+
+      <p class="arrow-label">↑ ↓ ← → 이동</p>
+
+      <hr class="help-divider" />
+
+      <h3>AI 로고 수집</h3>
+      <div class="logo-effects">
+        <div class="logo-effect-row">
+          <img src="assets/logos/chatgpt.png" alt="ChatGPT" />
+          <span>무적 1.5초</span>
+        </div>
+        <div class="logo-effect-row">
+          <img src="assets/logos/claude.png" alt="Claude" />
+          <span>충돌 방어 1회</span>
+        </div>
+        <div class="logo-effect-row">
+          <img src="assets/logos/gemini.png" alt="Gemini" />
+          <span>시간 -3분</span>
+        </div>
+        <div class="logo-effect-row">
+          <img src="assets/logos/copilot.png" alt="Copilot" />
+          <span>안전 구간 이동</span>
+        </div>
+      </div>
+      <p class="help-note">※ 로고를 많이 모을수록 점수가 올라갑니다.</p>
+
+      <hr class="help-divider" />
+
+      <h3>출근</h3>
+      <div class="commute-rules">
+        <p class="rule-line">08:30 시작 · 1초 = 1분</p>
+        <div class="rule-row"><span>09:00 이전</span><strong>정시출근</strong></div>
+        <div class="rule-row"><span>09:05 이전</span><strong>턱걸이출근</strong></div>
+        <div class="rule-row"><span>이후</span><strong>지각</strong></div>
+      </div>
+
+      <button id="btn-help-close" class="btn-primary">닫기</button>
+    </div>
+  </div>
+
+  <div id="screen-result" class="screen hidden">
+    <div class="card">
+      <h2 id="result-title"></h2>
+      <div class="result-stats">
+        <div class="result-row"><span>도착 시각</span><strong id="result-time"></strong></div>
+        <div class="result-row"><span>수집 로고</span><strong id="result-logos"></strong></div>
+        <div class="result-row"><span>점수</span><strong id="result-score"></strong></div>
+      </div>
+      <div class="btn-row">
+        <button id="btn-retry" class="btn-primary">게임 다시하기</button>
+        <button id="btn-home" class="btn-secondary">홈</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
