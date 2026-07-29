@@ -21,7 +21,7 @@ const clock = createClock();
 
 initInput((dx, dz) => {
   if (gameState !== 'playing') return;
-  if (player.hop(dx, dz)) playHop();
+  player.hop(dx, dz);
 });
 
 // --- HUD: top-right row of logo slots, lit up as each is collected ---
@@ -197,6 +197,11 @@ function tick(now) {
     obstacles.update(dt);
     collectibles.update(dt);
     clock.update(dt);
+
+    if (player.state.justHopped) {
+      player.state.justHopped = false;
+      playHop();
+    }
 
     const playerPos = player.getWorldPosition();
     const colliding = obstacles.checkCollision(playerPos);

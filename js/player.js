@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { TILE_SIZE, LANE_MIN_X, LANE_MAX_X } from './constants.js';
 import { TOTAL_ROWS } from './stages.js';
 
-const HOP_DURATION = 0.15;
+const HOP_DURATION = 0.1;
 
 function buildCharacterMesh() {
   const group = new THREE.Group();
@@ -58,16 +58,22 @@ export function createPlayer(scene) {
     t: 1,
     invincible: false,
     barrier: false,
+    // True for exactly one update() call right after a hop starts (whether
+    // triggered immediately or from the buffered queue) — main.js reads
+    // this once per frame to know when to play the hop sound, then clears it.
+    justHopped: false,
   };
   let invincibleBlinkTimer = 0;
+  // A key pressed just before the current hop finishes is buffered here and
+  // fired the instant the tween completes, instead of being dropped — this
+  // is what makes rapid direction taps feel responsive.
+  let queuedHop = null;
 
   function isMoving() {
     return state.t < 1;
   }
 
-  function hop(dx, dz) {
-    if (isMoving()) return false;
-
+  function performHop(dx, dz) {
     const nextX = state.gridX + dx;
     const nextZ = state.gridZ + dz;
     if (nextX < LANE_MIN_X || nextX > LANE_MAX_X) return false;
@@ -80,7 +86,16 @@ export function createPlayer(scene) {
     state.gridX = nextX;
     state.gridZ = nextZ;
     state.t = 0;
+    state.justHopped = true;
     return true;
+  }
+
+  function hop(dx, dz) {
+    if (isMoving()) {
+      queuedHop = [dx, dz];
+      return false;
+    }
+    return performHop(dx, dz);
   }
 
   function update(dt) {
@@ -92,7 +107,14 @@ export function createPlayer(scene) {
       mesh.visible = true;
     }
 
-    if (state.t >= 1) return;
+    if (state.t >= 1) {
+      if (queuedHop) {
+        const [dx, dz] = queuedHop;
+        queuedHop = null;
+        performHop(dx, dz);
+      }
+      return;
+    }
 
     state.t = Math.min(1, state.t + dt / HOP_DURATION);
     const ease = 1 - Math.pow(1 - state.t, 2);
@@ -122,6 +144,8 @@ export function createPlayer(scene) {
     state.t = 1;
     state.invincible = false;
     state.barrier = false;
+    state.justHopped = false;
+    queuedHop = null;
     mesh.position.set(0, 0, 0);
     mesh.visible = true;
     mesh.userData.legs[0].rotation.x = 0;
@@ -138,6 +162,7 @@ export function createPlayer(scene) {
     state.toX = gridX;
     state.toZ = gridZ;
     state.t = 1;
+    queuedHop = null;
     mesh.position.set(gridX * TILE_SIZE, 0, gridZ * TILE_SIZE);
   }
 
