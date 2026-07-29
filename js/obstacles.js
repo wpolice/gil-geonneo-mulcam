@@ -87,13 +87,24 @@ function buildTrain() {
   stripe.position.y = 0.68;
   group.add(stripe);
 
+  // A row of windows so the sweep clearly reads as a train car rather than
+  // a plain slab sliding across the lane.
+  const windowMat = new THREE.MeshLambertMaterial({ color: 0xbfe6ff });
+  const windowCount = Math.round(width / 0.6);
+  for (let i = 0; i < windowCount; i += 1) {
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.3, 0.87), windowMat);
+    win.position.set(-width / 2 + 0.4 + i * 0.6, 0.55, 0);
+    group.add(win);
+  }
+
   return group;
 }
 
+// Plain semi-transparent red box — a steady warning, no blink.
 function buildWarningStrip() {
   return new THREE.Mesh(
-    new THREE.BoxGeometry(LANE_SPAN * TILE_SIZE, 0.05, 0.9),
-    new THREE.MeshBasicMaterial({ color: 0xff5252, transparent: true, opacity: 0.6 })
+    new THREE.BoxGeometry(LANE_SPAN * TILE_SIZE, 0.05, 0.85),
+    new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.45 })
   );
 }
 

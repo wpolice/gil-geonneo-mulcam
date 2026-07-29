@@ -1,7 +1,7 @@
 import { createScene } from './scene.js';
 import { createPlayer } from './player.js';
 import { initInput } from './input.js';
-import { buildLanes, buildFinishLine } from './lanes.js';
+import { buildLanes, buildFinishLine, buildSubwayProps } from './lanes.js';
 import { createObstacles } from './obstacles.js';
 import { createCollectibles, LOGOS } from './collectibles.js';
 import { createClock } from './clock.js';
@@ -13,6 +13,7 @@ const { scene, camera, renderer, updateCamera } = createScene(canvas);
 
 buildLanes(scene, ROWS);
 buildFinishLine(scene, ROWS);
+buildSubwayProps(scene, ROWS);
 
 const player = createPlayer(scene);
 const obstacles = createObstacles(scene, ROWS);

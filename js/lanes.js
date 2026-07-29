@@ -10,21 +10,68 @@ const PALETTES = {
   bike: [0xb0bec5, 0xbcc7cc],
   road: [0x424242, 0x4a4a4a],
   bus: [0x6d4c41, 0x745246],
+  // Plain gray here used to read as a generic-error tile rather than a
+  // subway track — rail rows now use a dedicated track texture instead
+  // (see makeRailTrackTexture / materialFor's 'rail' special case below).
   rail: [0x707070, 0x787878],
   // Plaza paving, not a plain "finish line yellow" tile — the office
   // building + banner (buildFinishLine below) carry the arrival moment now.
   finish: [0xd7ccc8, 0xdfd6d3],
+  // Grass shoulder beyond the playable lanes — the camera's view is wider
+  // than the lanes themselves, so without this, obstacles wrapping around
+  // the edge of the road briefly show up floating over bare sky.
+  shoulder: [0x7a9a5a, 0x82a262],
 };
+
+// How many extra tiles of shoulder to draw on each side beyond the playable
+// lanes. Must cover the gap between the last lane tile and the camera's edge
+// (HALF_WIDTH in scene.js) — 2 tiles comfortably does that with room to spare.
+const SHOULDER_WIDTH = 2;
+
+// Ballast + two rails + sleepers, tileable along the row so it reads as one
+// continuous track rather than a flat gray slab (which read as a rendering
+// glitch rather than "subway").
+function makeRailTrackTexture() {
+  return makeCanvasTexture(128, 128, (ctx, w, h) => {
+    ctx.fillStyle = '#5c534a';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+    for (let i = 0; i < 30; i += 1) {
+      const rx = (i * 37) % w;
+      const ry = (i * 53) % h;
+      ctx.fillRect(rx, ry, 3, 3);
+    }
+    // wooden ties, two per tile so the spacing repeats cleanly tile-to-tile
+    ctx.fillStyle = '#3e2f22';
+    [0.25, 0.75].forEach((cx) => {
+      ctx.fillRect(cx * w - w * 0.09, h * 0.12, w * 0.18, h * 0.76);
+    });
+    // rails: two continuous metal lines spanning the full tile width
+    ctx.fillStyle = '#d7dadc';
+    ctx.fillRect(0, h * 0.28, w, h * 0.09);
+    ctx.fillRect(0, h * 0.63, w, h * 0.09);
+    ctx.strokeStyle = '#8a8f93';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, h * 0.28, w, h * 0.09);
+    ctx.strokeRect(0, h * 0.63, w, h * 0.09);
+  });
+}
 
 export function buildLanes(scene, rows) {
   const geometry = new THREE.BoxGeometry(TILE_SIZE * 0.95, 0.15, TILE_SIZE * 0.95);
   const materialCache = new Map();
+  let railTexture = null;
 
   function materialFor(type, parity) {
     const cacheKey = `${type}:${parity}`;
     if (!materialCache.has(cacheKey)) {
-      const palette = PALETTES[type] || PALETTES.safe;
-      materialCache.set(cacheKey, new THREE.MeshLambertMaterial({ color: palette[parity] }));
+      if (type === 'rail') {
+        if (!railTexture) railTexture = makeRailTrackTexture();
+        materialCache.set(cacheKey, new THREE.MeshLambertMaterial({ map: railTexture }));
+      } else {
+        const palette = PALETTES[type] || PALETTES.safe;
+        materialCache.set(cacheKey, new THREE.MeshLambertMaterial({ color: palette[parity] }));
+      }
     }
     return materialCache.get(cacheKey);
   }
@@ -32,8 +79,10 @@ export function buildLanes(scene, rows) {
   function addRow(z, type) {
     const parity = ((z % 2) + 2) % 2;
     const material = materialFor(type, parity);
-    for (let x = LANE_MIN_X; x <= LANE_MAX_X; x++) {
-      const tile = new THREE.Mesh(geometry, material);
+    const shoulderMaterial = materialFor('shoulder', parity);
+    for (let x = LANE_MIN_X - SHOULDER_WIDTH; x <= LANE_MAX_X + SHOULDER_WIDTH; x++) {
+      const isShoulder = x < LANE_MIN_X || x > LANE_MAX_X;
+      const tile = new THREE.Mesh(geometry, isShoulder ? shoulderMaterial : material);
       tile.position.set(x * TILE_SIZE, -0.075, z * TILE_SIZE);
       scene.add(tile);
     }
@@ -123,4 +172,39 @@ export function buildFinishLine(scene, rows) {
   const display = buildFinishDisplay();
   display.position.z = finishRow.z * TILE_SIZE;
   scene.add(display);
+}
+
+function buildPillar() {
+  const group = new THREE.Group();
+
+  const pillar = new THREE.Mesh(
+    new THREE.BoxGeometry(0.32, 2.4, 0.32),
+    new THREE.MeshLambertMaterial({ color: 0x546069 })
+  );
+  pillar.position.y = 1.2;
+  group.add(pillar);
+
+  const light = new THREE.Mesh(
+    new THREE.BoxGeometry(0.4, 0.16, 0.4),
+    new THREE.MeshBasicMaterial({ color: 0xffe082 })
+  );
+  light.position.y = 2.45;
+  group.add(light);
+
+  return group;
+}
+
+// Plants a support pillar (with a little platform light on top) at both lane
+// edges of every row in the subway stage, so it reads as an underground
+// platform/tunnel rather than just an odd gray strip with a train on it.
+export function buildSubwayProps(scene, rows) {
+  rows
+    .filter((row) => row.stageKey === 'subway')
+    .forEach((row) => {
+      [LANE_MIN_X - 0.65, LANE_MAX_X + 0.65].forEach((x) => {
+        const pillar = buildPillar();
+        pillar.position.set(x * TILE_SIZE, 0, row.z * TILE_SIZE);
+        scene.add(pillar);
+      });
+    });
 }
